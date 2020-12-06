@@ -10,8 +10,8 @@ class Game:
     def __init__(self):
         pygame.init()
         self.wall_base_path = os.getcwd() + '\\images\\'
-        self.bg = Background('backdrop.png', (0,0))
-        self.width, self.height = 1200, 900
+        self.bg = Background('larger_backdrop.png', (0,0))
+        self.width, self.height = 1024, 768
         self.centre = (self.width//2, self.height//2)
         self.surface = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
@@ -24,9 +24,10 @@ class Game:
         self.main_menu = menu.MainMenu(self)
         self.pause_menu = menu.PauseMenu(self)
         self.running = False
-        self.camera = Camera(3000, 3000)
+        self.camera = Camera(2160, 1920)
         self.timer = Timer()
         self.timer.countdown(90)
+        self.all_sprites = []
 
         
     def button(self, off_x, off_y):
@@ -56,6 +57,7 @@ class Game:
         self.set_maze()
         self.set_player()
         self.timer = Timer()
+        self.all_sprites = [self.p1, self.maze, self.bg]
         self.run()
 
     def get_events(self):
@@ -80,8 +82,7 @@ class Game:
         while self.running:
             self.clock.tick(10)
             self.timer.update()
-            self.surface.fill(pygame.Color('black'))
-            self.surface.blit(self.bg.image, self.bg.rect)
+            
 
             self.clicking = False
             for event in pygame.event.get():
@@ -103,17 +104,21 @@ class Game:
 
 
             
+            
+
+            
+
+
+            self.p1.update(self.camera)
+            self.surface.blit(self.bg.image, self.camera.apply(self.bg))
+            self.maze.draw(self.surface, self.camera)
+            self.p1.draw(self.surface, self.camera)
+            
             self.draw_text("Time", self.width//2, self.height//2 - 350)
             self.draw_text(str(self.timer.neg_time), self.width//2, self.height//2 - 300)
-
+            
             for apple, i in zip(range(self.p1.apples_collected), range(10, self.p1.apples_collected * 64, 64)):
                 self.surface.blit(pygame.transform.scale2x(Cell.apple), (0 + i, self.height - 64))
-
-
-            self.p1.update()
-            self.camera.update(self.p1)
-            self.maze.draw(self.surface)
-            self.p1.draw(self.surface)
 
             #self.surface.blit(self.maze.image)
             

@@ -17,7 +17,7 @@ class Player(pygame.sprite.Sprite):
         self.apples_collected = 0
         self.rect.center = self.cell.rect.center
     
-    def update(self):
+    def update(self, camera):
 
         """
         The player cannot move through walls so this checks if a
@@ -50,14 +50,16 @@ class Player(pygame.sprite.Sprite):
             self.cell.contents = None
             self.apples_collected += 1
 
+        camera.update(self)
+
     def reset_pos(self, grid, cell):
         self.cells = grid.grid
         self.cell = self.cells[cell]
         self.cell_index = cell
         
 
-    def draw(self, s):
-        s.blit(self.image, self.rect)
+    def draw(self, s, camera):
+        s.blit(self.image, camera.apply(self))#self.rect)
 
 
 class Background(pygame.sprite.Sprite):
@@ -67,6 +69,11 @@ class Background(pygame.sprite.Sprite):
         self.image = pygame.image.load(img_base_path+image_file)
         self.rect = self.image.get_rect()
         self.rect.left, self.rect.top = location
+
+class Item(Background):
+    def __init__(self, image_file, location, cell_rect):
+        super().__init__(image_file, location)
+        self.rect.center = cell_rect.center
 
 
 class Cell(pygame.sprite.Sprite):
@@ -79,7 +86,7 @@ class Cell(pygame.sprite.Sprite):
     or not.
     """
 
-    off_x, off_y = 195, 380
+    off_x, off_y = 500, 1100
 
     wall =  pygame.image.load("images\\wall2.png")
     apple = pygame.image.load("images\\apple.png")
@@ -98,6 +105,8 @@ class Cell(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.x, self.y, self.width, self.width)
         # self.image = self.hedges[0]
         self.contents = None
+        self.apple = Item("apple.png", (self.rect.x, self.rect.y), self.rect)
+        self.portal = Item("portal.png", (self.rect.x, self.rect.y), self.rect)
 
     @classmethod
     def move_cells(cls):
@@ -126,23 +135,23 @@ class Cell(pygame.sprite.Sprite):
             return False
 
 
-    def draw(self, s, dd=False):
+    def draw(self, s, camera, dd=True):
         line = self.width // 8
         # dd is a debugging variable that will draw in walls around the players current cell
         # This was used to check that collision was working properly
-        x = self.x - 10
-        y = self.y - 10
+        x = self.x
+        y = self.y
         if self.walls[0]:
-            s.blit(pygame.transform.rotate(self.wall, -90), (x, y))
+            s.blit(pygame.transform.rotate(self.wall, -90), camera.apply(self))#(x, y))
             
         if self.walls[1]:
-            s.blit(pygame.transform.flip(self.wall, True, False), (x, y))
+            s.blit(pygame.transform.flip(self.wall, True, False), camera.apply(self))#(x, y))
             
         if self.walls[2]:
-            s.blit(pygame.transform.rotate(self.wall, 90), (x, y))
+            s.blit(pygame.transform.rotate(self.wall, 90), camera.apply(self))#(x, y))
             
         if self.walls[3]:
-            s.blit(self.wall, (x, y))
+            s.blit(self.wall, camera.apply(self))#(x, y))
 
         if dd:
             if self.walls[0]:
@@ -161,50 +170,11 @@ class Cell(pygame.sprite.Sprite):
        
             
         if self.contents == "apple":
-            s.blit(self.apple, (self.x+16, self.y+16))
+            s.blit(self.apple.image, camera.apply(self.apple))
         elif self.contents == "exit":
-            s.blit(self.portal, (self.x+16, self.y+16))
+            s.blit(self.portal.image, camera.apply(self.portal))
             pass
     
-    def draw_camera(self, s, dd=False):
-        line = self.width // 8
-        # dd is a debugging variable that will draw in walls around the players current cell
-        # This was used to check that collision was working properly
-        x = self.x - 10
-        y = self.y - 10
-        if self.walls[0]:
-            s.blit(pygame.transform.rotate(self.wall, -90), (x, y))
-            
-        if self.walls[1]:
-            s.blit(pygame.transform.flip(self.wall, True, False), (x, y))
-            
-        if self.walls[2]:
-            s.blit(pygame.transform.rotate(self.wall, 90), (x, y))
-            
-        if self.walls[3]:
-            s.blit(self.wall, (x, y))
-
-        if dd:
-            if self.walls[0]:
-                pygame.draw.line(s, pygame.Color('blue'),
-                                 (self.x, self.y), (self.x+self.width, self.y), line)
-            if self.walls[1]:
-                pygame.draw.line(s, pygame.Color('blue'),
-                                 (self.x+self.width, self.y), (self.x+self.width, self.y+self.width), line)
-            if self.walls[2]:
-                pygame.draw.line(s, pygame.Color('blue'),
-                                 (self.x+self.width, self.y+self.width), (self.x, self.y+self.width), line)
-            if self.walls[3]:
-                pygame.draw.line(s, pygame.Color('blue'),
-                                 (self.x, self.y+self.width), (self.x, self.y), line)
-
-       
-            
-        if self.contents == "apple":
-            s.blit(self.apple, (self.x+16, self.y+16))
-        elif self.contents == "exit":
-            s.blit(self.portal, (self.x+16, self.y+16))
-            pass
 
 
 class Grid:
@@ -214,8 +184,8 @@ class Grid:
         self.s_height = s_height
         self.grid = []
         self.width = 64
-        self.rows = 7
-        self.cols = 13
+        self.rows = 10
+        self.cols = 20
         # self.rows = s_height // self.width - 2*self.margin
         # if fill:
         #     self.cols = s_width // self.width - 2*self.margin
@@ -340,8 +310,8 @@ class Grid:
             if not self.grid[random.randint(0, 90)].populate_cell(item):
                 num += 1
 
-    def draw(self, surface):
+    def draw(self, surface, camera):
         """Draws the maze onto the screen"""
         for i in range(len(self.grid)):
-                self.grid[i].draw(surface)
+                self.grid[i].draw(surface, camera)
 
